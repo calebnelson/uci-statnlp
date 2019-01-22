@@ -185,11 +185,11 @@ if __name__ == "__main__":
     import classify
     C_range = [1, 10, 100, 1000]
     solvers = ["newton-cg", "lbfgs", "liblinear", "sag", "saga"]
-    for solver in solvers:
+    for solver in ["saga"]:
         print("Using " + solver)
-        for c in C_range:
+        for c in [10]:
             print("Evaluating at C=" + str(c))
-            for tfidf in [True, False]:
+            for tfidf in [True]:
                 print("With tfidf" if tfidf else "Without tfidf")
                 cls = classify.train_classifier(
                     speech.trainX_tfidf if tfidf else speech.trainX, speech.trainy, c=c, solver=solver)
