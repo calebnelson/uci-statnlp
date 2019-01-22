@@ -1,0 +1,1 @@
+ providers wouldn't be talking to each other, making sure that the treatments they were prescribing were working together. This ends up

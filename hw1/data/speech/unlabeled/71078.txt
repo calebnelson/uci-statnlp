@@ -1,0 +1,1 @@
+ for are closing, because it's just a reallocation of resources. You don't need a business degree to know that these things hurt the middle

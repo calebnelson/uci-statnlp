@@ -1,0 +1,1 @@
+ barcode medication administration system in which patients are given a bar-coded ID tag. Nurses scan this tag when providing medications

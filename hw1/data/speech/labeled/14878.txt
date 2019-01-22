@@ -1,0 +1,1 @@
+ contains every detail of a patient's health record, including laboratory test results, medical images, bar code medication administration,

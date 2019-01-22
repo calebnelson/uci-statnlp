@@ -163,7 +163,9 @@ if __name__ == "__main__":
 	import classify
 	cls = classify.train_classifier(speech.trainX, speech.trainy)
 	print("Evaluating")
+	print("Acc on Training Data")
 	classify.evaluate(speech.trainX, speech.trainy, cls)
+	print("Acc on Dev Data")
 	classify.evaluate(speech.devX, speech.devy, cls)
 
 	print("Reading unlabeled data")

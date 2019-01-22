@@ -1,0 +1,1 @@
+ end it not by duplicating the same tactics and the same strategies as the other side, because that will just lead us down the same path of

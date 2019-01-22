@@ -1,0 +1,1 @@
+ payment formula that has been worked out on some computer that has balloon payments and pre-payment penalties, which includes the cost of

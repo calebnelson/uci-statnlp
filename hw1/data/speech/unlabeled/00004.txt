@@ -1,0 +1,1 @@
+ state. It's a state that knows how to pick a president. And no candidate in recent history, Democrat or Republican, has won the White
