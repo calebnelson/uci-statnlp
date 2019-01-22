@@ -26,11 +26,17 @@ def read_files(tarfname):
 	print("-- dev data")
 	speech.dev_data, speech.dev_fnames, speech.dev_labels = read_tsv(tar, "dev.tsv")
 	print(len(speech.dev_data))
+
 	print("-- transforming data and labels")
-	from sklearn.feature_extraction.text import CountVectorizer
+	from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 	speech.count_vect = CountVectorizer()
+	speech.tfidf_transformer = TfidfTransformer()
 	speech.trainX = speech.count_vect.fit_transform(speech.train_data)
+	speech.trainX_tfidf = speech.tfidf_transformer.fit_transform(speech.trainX) 
 	speech.devX = speech.count_vect.transform(speech.dev_data)
+	speech.devX_tfidf = speech.tfidf_transformer.transform(speech.devX)
+	print(speech.trainX_tfidf.shape)
+	print(speech.devX_tfidf.shape)
 	from sklearn import preprocessing
 	speech.le = preprocessing.LabelEncoder()
 	speech.le.fit(speech.train_labels)
@@ -159,14 +165,23 @@ if __name__ == "__main__":
 	print("Reading data")
 	tarfname = "data/speech.tar.gz"
 	speech = read_files(tarfname)
+	
 	print("Training classifier")
 	import classify
-	cls = classify.train_classifier(speech.trainX, speech.trainy)
-	print("Evaluating")
-	print("Acc on Training Data")
-	classify.evaluate(speech.trainX, speech.trainy, cls)
-	print("Acc on Dev Data")
-	classify.evaluate(speech.devX, speech.devy, cls)
+	C_range = [1,10,100,1000]
+	solvers = ["newton-cg", "lbfgs", "liblinear", "sag", "saga"]
+	for solver in solvers:
+		print("Using " + solver)
+		for c in C_range:
+			print("Evaluating at C=" + str(c))
+			for tfidf in [True, False]:
+				print("With tfidf" if tfidf else "Without tfidf")
+				cls = classify.train_classifier(speech.trainX_tfidf if tfidf else speech.trainX, speech.trainy, c=c, solver=solver)
+				print("Acc on Training Data")
+				classify.evaluate(speech.trainX_tfidf if tfidf else speech.trainX, speech.trainy, cls)
+				print("Acc on Dev Data")
+				classify.evaluate(speech.devX_tfidf if tfidf else speech.devX, speech.devy, cls)
+				print("\n")
 
 	print("Reading unlabeled data")
 	unlabeled = read_unlabeled(tarfname, speech)
