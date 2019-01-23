@@ -1,5 +1,8 @@
 #!/bin/python
 
+import numpy as np
+import scipy as sp
+
 
 def read_files(tarfname):
     """Read the training and development data from the speech tar file.
@@ -48,6 +51,8 @@ def read_files(tarfname):
     speech.target_labels = speech.le.classes_
     speech.trainy = speech.le.transform(speech.train_labels)
     speech.devy = speech.le.transform(speech.dev_labels)
+    print(speech.trainy.shape)
+    print(speech.devy.shape)
     tar.close()
     return speech
 
@@ -176,6 +181,14 @@ def read_instance(tar, ifname):
     return content
 
 
+def merge_sparse_matrices(m1, m2):
+    merged_data = np.concatenate((m1.data, m2.data))
+    merged_indicies = np.concatenate((m1.indices, m2.indices))
+    merged_index_pointers = np.concatenate(
+        (m1.indptr, (m2.indptr + len(m1.data))[1:]))
+    return sp.sparse.csr_matrix((merged_data, merged_indicies, merged_index_pointers))
+
+
 if __name__ == "__main__":
     print("Reading data")
     tarfname = "data/speech.tar.gz"
@@ -203,6 +216,44 @@ if __name__ == "__main__":
 
     print("Reading unlabeled data")
     unlabeled = read_unlabeled(tarfname, speech)
+    numBatches = 10
+    labeledXBatches = np.split(speech.trainX.toarray(), numBatches)
+    labeledYBatches = np.split(speech.trainy, numBatches)
+    unlabeledXBatches = np.split(
+        unlabeled.X.toarray()[:-2], numBatches)
+    trainXBatches = [None] * numBatches
+    trainYBatches = [None] * numBatches
+    print(labeledXBatches[0].shape)
+    print(unlabeledXBatches[0].shape)
+    for i in range(numBatches):
+        trainXBatches[i] = np.concatenate((
+            labeledXBatches[i], unlabeledXBatches[i]))
+        trainYBatches[i] = np.concatenate((labeledYBatches[i], np.full(
+            unlabeledXBatches[i].shape[0], -1.)), axis=None)
+    from sklearn.semi_supervised import label_propagation
+    label_spread = label_propagation.LabelPropagation(
+        kernel='knn', alpha=1)
+    print("batches prepared, propagating labels")
+    for i in range(numBatches):
+        label_spread.fit(trainXBatches[i], trainYBatches[i])
+    print("labels propagated, training model")
+
+    newTrainX = trainXBatches[0]
+    newTrainy = trainYBatches[0]
+    for i in range(1, numBatches):
+        newTrainX = np.concatenate((newTrainX, trainXBatches[i]))
+        newTrainy = np.concatenate((newTrainy, trainYBatches[i]), axis=None)
+    print(newTrainX.shape)
+    print(newTrainy.shape)
+
+    from scipy import sparse
+    trainXsparse = sparse.csr_matrix(newTrainX)
+    cls = classify.train_classifier(
+        trainXsparse, newTrainy, c=10, solver="saga")
+    print("model trained, evaluating")
+    classify.evaluate(trainXsparse, newTrainy, cls)
+    classify.evaluate(speech.devX_tfidf, speech.devy, cls)
+
     print("Writing pred file")
     write_pred_kaggle_file(unlabeled, cls, "data/speech-pred.csv", speech)
 
