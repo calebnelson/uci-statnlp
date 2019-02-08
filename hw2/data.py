@@ -6,6 +6,7 @@ from __future__ import absolute_import
 
 import numpy as np
 import sys
+import datetime
 
 
 # Python 3 backwards compatibility tricks
@@ -120,6 +121,27 @@ def learn_unigram(data):
     print("sample: ", " ".join(str(x) for x in sampler.sample_sentence([])))
     return unigram
 
+def learn_ngram(data, n=1, lower=True):
+    """Learns a ngram model from data.train.
+
+    It also evaluates the model on data.dev and data.test, along with generating
+    some sample sentences from the model.
+    """
+    from lm import Ngram
+    ngram = Ngram(n=n, lower=lower)
+    ngram.fit_corpus(data.train)
+    print("vocab:", len(ngram.vocab()))
+    # evaluate on train, test, and dev
+    print("train:", ngram.perplexity(data.train))
+    print("dev  :", ngram.perplexity(data.dev))
+    print("test :", ngram.perplexity(data.test))
+    from generator import Sampler
+    sampler = Sampler(ngram)
+    print("sample: ", " ".join(str(x) for x in sampler.sample_sentence([])))
+    print("sample: ", " ".join(str(x) for x in sampler.sample_sentence([])))
+    print("sample: ", " ".join(str(x) for x in sampler.sample_sentence([])))
+    return ngram
+
 def print_table(table, row_names, col_names, latex_file = None):
     """Pretty prints the table given the table, and row and col names.
 
@@ -128,7 +150,7 @@ def print_table(table, row_names, col_names, latex_file = None):
     """
     try:
         from tabulate import tabulate
-        rows = map(lambda rt: [rt[0]] + rt[1], zip(row_names,table.tolist()))
+        rows = [*map(lambda rt: [rt[0]] + rt[1], zip(row_names,table.tolist()))]
         print(tabulate(rows, headers = [""] + col_names))
         if latex_file is not None:
             latex_str = tabulate(rows, headers = [""] + col_names, tablefmt="latex")
@@ -136,6 +158,7 @@ def print_table(table, row_names, col_names, latex_file = None):
                 f.write(latex_str)
                 f.close()
     except ImportError as e:
+        print("Import tabulate")
         row_format ="{:>15} " * (len(col_names) + 1)
         print(row_format.format("", *col_names))
         for row_name, row in zip(row_names, table):
@@ -148,32 +171,60 @@ if __name__ == "__main__":
     dnames = ["brown", "reuters", "gutenberg"]
     datas = []
     models = []
-    # Learn the models for each of the domains, and evaluate it
     for dname in dnames:
         print("-----------------------")
         print(dname)
         data = read_texts("data/corpora.tar.gz", dname)
-        datas.append(data)
-        model = learn_unigram(data)
-        models.append(model)
-    # compute the perplexity of all pairs
-    n = len(dnames)
-    perp_dev = np.zeros((n,n))
-    perp_test = np.zeros((n,n))
-    perp_train = np.zeros((n,n))
-    for i in range(n):
-        for j in range(n):
-            perp_dev[i][j] = models[i].perplexity(datas[j].dev)
-            perp_test[i][j] = models[i].perplexity(datas[j].test)
-            perp_train[i][j] = models[i].perplexity(datas[j].train)
+        datas.append(data) 
+    
+    for gram in [1, 2, 3, 4, 5]:
+        if gram == 1:
+            l = [False]
+        else:
+            l = [True, False]
+        for lower in l:
+            print ("\nTraining " + str(gram) + "-gram models")
+            if lower:
+                print ("with forcing lowercase")
+            models = []
+            # Learn the models for each of the domains, and evaluate it
+            for i in range(len(dnames)):
+                print("-----------------------")
+                print(dnames[i])
+                if (gram == 1):
+                    model = learn_unigram(datas[i])
+                else:
+                    model = learn_ngram(datas[i], n=gram, lower=lower)
+                models.append(model)
+            # compute the perplexity of all pairs
+            n = len(dnames)
+            perp_dev = np.zeros((n,n))
+            perp_test = np.zeros((n,n))
+            perp_train = np.zeros((n,n))
+            for i in range(n):
+                for j in range(n):
+                    perp_dev[i][j] = models[i].perplexity(datas[j].dev)
+                    perp_test[i][j] = models[i].perplexity(datas[j].test)
+                    perp_train[i][j] = models[i].perplexity(datas[j].train)
 
-    print("-------------------------------")
-    print("x train")
-    print_table(perp_train, dnames, dnames, "table-train.tex")
-    print("-------------------------------")
-    print("x dev")
-    print_table(perp_dev, dnames, dnames, "table-dev.tex")
-    print("-------------------------------")
-    print("x test")
-    print_table(perp_test, dnames, dnames, "table-test.tex")
+            if lower:
+                print("-------------------------------")
+                print("x train")
+                print_table(perp_train, dnames, dnames, str(gram)+"gramLower/table-train-"+str(datetime.datetime.now())+".tex")
+                print("-------------------------------")
+                print("x dev")
+                print_table(perp_dev, dnames, dnames, str(gram)+"gramLower/table-dev-"+str(datetime.datetime.now())+".tex")
+                print("-------------------------------")
+                print("x test")
+                print_table(perp_test, dnames, dnames, str(gram)+"gramLower/table-test-"+str(datetime.datetime.now())+".tex")
+            else:
+                print("-------------------------------")
+                print("x train")
+                print_table(perp_train, dnames, dnames, str(gram)+"gram/table-train-"+str(datetime.datetime.now())+".tex")
+                print("-------------------------------")
+                print("x dev")
+                print_table(perp_dev, dnames, dnames, str(gram)+"gram/table-dev-"+str(datetime.datetime.now())+".tex")
+                print("-------------------------------")
+                print("x test")
+                print_table(perp_test, dnames, dnames, str(gram)+"gram/table-test-"+str(datetime.datetime.now())+".tex")
 

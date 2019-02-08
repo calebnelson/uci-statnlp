@@ -31,7 +31,7 @@ class Sampler:
         i = 0
         sent = prefix
         word = self.sample_next(sent, False)
-        while i <= max_length and word != "END_OF_SENTENCE":
+        while i <= max_length and word != "end_of_sentence":
             sent.append(word)
             word = self.sample_next(sent)
             i += 1
@@ -49,7 +49,7 @@ class Sampler:
         wps = []
         tot = -np.inf # this is the log (total mass)
         for w in self.lm.vocab():
-            if not incl_eos and w == "END_OF_SENTENCE":
+            if not incl_eos and w == "end_of_sentence":
                 continue
             lp = self.lm.cond_logprob(w, prev, 0)
             wps.append([w, lp/self.temp])

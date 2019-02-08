@@ -48,7 +48,7 @@ class LangModel:
         p = 0.0
         for i in xrange(len(sentence)):
             p += self.cond_logprob(sentence[i], sentence[:i], numOOV)
-        p += self.cond_logprob('END_OF_SENTENCE', sentence, numOOV)
+        p += self.cond_logprob('end_of_sentence', sentence, numOOV)
         return p
 
     # required, update the model when a sentence is observed
@@ -74,7 +74,7 @@ class Unigram(LangModel):
     def fit_sentence(self, sentence):
         for w in sentence:
             self.inc_word(w)
-        self.inc_word('END_OF_SENTENCE')
+        self.inc_word('end_of_sentence')
 
     def norm(self):
         """Normalize and convert to log2-probs."""
@@ -93,3 +93,60 @@ class Unigram(LangModel):
 
     def vocab(self):
         return self.model.keys()
+
+
+class Ngram(LangModel):
+    def __init__(self, unk_prob=0.0001, n=1, lower=True):
+        self.model = [dict() for i in range(n)]
+        self.n = n
+        self.lower = lower
+        self.lunk_prob = log(unk_prob, 2)
+
+    def inc_history(self, history):
+        for i in range(len(history)):
+            if history[-(i+1):] in self.model[i]:
+                self.model[i][history[-(i+1):]] += 1.0
+            else:
+                self.model[i][history[-(i+1):]] = 1.0
+
+    def fit_sentence(self, sentence):
+        history = ()
+        for w in sentence:
+            if self.lower:
+                w = w.lower()
+            if len(history) >= self.n:
+                history = history[1:] + (w,)
+            else:
+                history = history + (w,)
+            self.inc_history(history)
+        self.inc_history(('end_of_sentence',))
+
+    def norm(self):
+        """Normalize and convert to log2-probs."""
+        for m in reversed(range(self.n)):
+            for gram in self.model[m]:
+                if m > 0:
+                    self.model[m][gram] = log(self.model[m][gram], 2) - log(self.model[m-1][gram[:-1]], 2)
+                else:
+                    tot = 0.0
+                    for gram in self.model[m]:
+                        tot += self.model[m][gram]
+                    ltot = log(tot, 2)
+                    self.model[m][gram] = log(self.model[m][gram], 2) - ltot
+
+    def cond_logprob(self, word, previous, numOOV):
+        if self.lower :
+            w = word.lower()
+            key = tuple([p.lower() for p in previous[-(self.n-1):]] + [w])
+        else:
+            key = tuple(previous[-(self.n-1):] + [word])
+        model_index = len(key) - 1
+        for m in range(len(key)):
+            if key[m:] in self.model[model_index]:
+                return self.model[model_index][key[m:]]
+            else:
+                model_index -= 1
+        return self.lunk_prob-log(numOOV, 2)
+        
+    def vocab(self):
+        return [key[0] for key in self.model[0].keys()]
