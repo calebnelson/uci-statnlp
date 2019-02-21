@@ -92,3 +92,11 @@ ENV/
 **/results
 
 .DS_Store
+*.th
+*.json
+*.tar.gz
+*.log
+log/
+*.ner
+*.pos
+vocabulary/
